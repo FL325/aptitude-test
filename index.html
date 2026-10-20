@@ -121,7 +121,7 @@
   <h1>適性検査</h1>
   <p class="lead">「回答を開始する」を押すと問題が表示され、時間の計測が始まります。途中で中断したり、やり直したりすることはできません。</p>
   <div class="facts">
-    <div><b>15分</b><span>制限時間</span></div>
+    <div><b>25分</b><span>制限時間</span></div>
     <div><b>全7問</b><span>選択式と記述式</span></div>
   </div>
   <h2>受験上の注意</h2>
@@ -171,7 +171,7 @@
     <div class="wrap">
       <div class="camchip"><video id="camLive" autoplay playsinline muted></video><span>カメラ<br>撮影あり</span></div>
       <span class="name" id="who"></span>
-      <div class="timer" aria-live="off"><small>残り時間</small><b id="clock">15:00</b></div>
+      <div class="timer" aria-live="off"><small>残り時間</small><b id="clock">25:00</b></div>
     </div>
     <div class="track"><div class="fill" id="fill"></div></div>
   </header>
@@ -246,7 +246,7 @@
   var SHOTS_RANDOM = 3;      // 受験中のランダム撮影回数
   var state = {
     id: null, name: '', items: [], figs: {},
-    deadline: 0, limitSec: 900,
+    deadline: 0, limitSec: 1500,
     active: false, locked: false, submitting: false,
     stats: { awayCount: 0, awaySeconds: 0, fsExitCount: 0, blockedCount: 0, camStopCount: 0, fsUnavailable: false, ua: navigator.userAgent },
     stream: null, shotPlan: null, shotTimer: null, startedAt: 0,
