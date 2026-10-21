@@ -46,7 +46,8 @@
   .rules { margin: 0 0 28px; padding-left: 1.2em; }
   .rules li { margin-bottom: 6px; }
   .field { margin-bottom: 20px; }
-  .field label { display: block; font-weight: 700; margin-bottom: 6px; }
+  .field label, .field .label { display: block; font-weight: 700; margin-bottom: 6px; }
+  .who-big { font-size: 22px; font-weight: 700; margin: 0; }
   .req { color: var(--danger); font-weight: 400; font-size: 14px; margin-left: 6px; }
   input[type=text] { width: 100%; max-width: 360px; font: inherit; padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); }
   .consent { display: flex; gap: 12px; align-items: flex-start; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px; margin-bottom: 28px; cursor: pointer; }
@@ -146,12 +147,13 @@
     </div>
   </div>
   <div class="field">
-    <label for="name">氏名<span class="req">必須</span></label>
-    <input type="text" id="name" maxlength="50" autocomplete="name" placeholder="例）山田 太郎">
+    <span class="label">受験者</span>
+    <p class="who-big"><span id="inviteName"></span> さん</p>
+    <p class="hint">ご本人でない場合は受験せず、採用担当者にご連絡ください。<span id="expiryText"></span></p>
   </div>
   <label class="consent">
     <input type="checkbox" id="agree">
-    <span>上記の注意事項を確認しました。AI・計算機・他の人の助けを使わずに受験し、画面の切り替えなどの記録と、本人確認のためのカメラ撮影に同意します。</span>
+    <span>私は上記の受験者本人です。注意事項を確認し、AI・計算機・他の人の助けを使わずに受験し、画面の切り替えなどの記録と、本人確認のためのカメラ撮影に同意します。</span>
   </label>
   <button class="btn" id="startBtn" disabled>回答を開始する</button>
   <div class="msg" id="introMsg" role="alert"></div>
@@ -189,6 +191,12 @@
   <h1>解答を送信できませんでした</h1>
   <p>通信状況を確認して「もう一度送信する」を押してください。解答は画面に残っています。</p>
   <button class="btn" id="retryBtn">もう一度送信する</button>
+</main>
+
+<!-- 受験URLが使えない -->
+<main id="screen-blocked" class="wrap center" hidden>
+  <h1 id="blockedTitle">この受験URLは使用できません</h1>
+  <p id="blockedText">採用担当者からご案内した受験URLを開いてください。</p>
 </main>
 
 <!-- 読み込み中 -->
@@ -254,7 +262,15 @@
   };
 
   var $ = function (id) { return document.getElementById(id); };
-  var screens = ['intro', 'resume', 'exam', 'done', 'error', 'loading'];
+  var screens = ['intro', 'resume', 'exam', 'done', 'error', 'loading', 'blocked'];
+  var TOKEN = (function () {
+    try { return (new URLSearchParams(location.search).get('t') || '').toLowerCase(); } catch (e) { return ''; }
+  })();
+  function blocked(title, text) {
+    $('blockedTitle').textContent = title;
+    $('blockedText').textContent = text;
+    show('blocked');
+  }
   function show(name) { screens.forEach(function (s) { $('screen-' + s).hidden = (s !== name); }); window.scrollTo(0, 0); }
 
   function store(k, v) { try { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
@@ -274,8 +290,8 @@
   var ACTIONS = { startExam: 'start', resumeExam: 'resume', reportActivity: 'report', submitExam: 'submit' };
   function run(fn) {
     var a = arguments;
-    var body = fn === 'startExam' ? { name: a[1] }
-      : fn === 'resumeExam' ? { id: a[1] }
+    var body = fn === 'startExam' ? { token: TOKEN }
+      : fn === 'resumeExam' ? { token: TOKEN }
       : fn === 'reportActivity' ? { id: a[1], stats: a[2] }
       : { id: a[1], answers: a[2], stats: a[3], reason: a[4] };
     return api(ACTIONS[fn], body);
@@ -378,7 +394,7 @@
 
   /* ---------- 開始前 ---------- */
   var camReady = false;
-  function validate() { $('startBtn').disabled = !($('name').value.trim() && $('agree').checked && camReady); }
+  function validate() { $('startBtn').disabled = !($('agree').checked && camReady); }
   $('camBtn').addEventListener('click', function () {
     $('camBtn').disabled = true;
     $('camStatus').className = 'camstatus';
@@ -399,20 +415,16 @@
       validate();
     });
   });
-  $('name').addEventListener('input', validate);
   $('agree').addEventListener('change', validate);
 
   $('startBtn').addEventListener('click', function () {
-    var name = $('name').value.trim();
-    if (!name) return;
     if (!camLive()) { camReady = false; validate(); $('introMsg').textContent = 'カメラが停止しています。「カメラを確認する」をもう一度押してください。'; $('camBtn').hidden = false; $('camBtn').disabled = false; return; }
     enterFullscreen();
     $('startBtn').disabled = true;
     $('introMsg').textContent = '';
     $('startBtn').textContent = '準備しています…';
-    state.name = name;
-    run('startExam', name).then(function (p) {
-      store(KEY, { id: p.id, name: name });
+    run('startExam').then(function (p) {
+      state.name = p.name || state.name;
       begin(p);
     }).catch(function (e) {
       exitFullscreen();
@@ -423,14 +435,24 @@
   });
 
   /* ---------- 再開 ---------- */
-  var resumePayload = null;
   $('resumeBtn').addEventListener('click', function () {
     $('resumeBtn').disabled = true;
     $('resumeMsg').textContent = '';
     startCamera().then(function () {
       enterFullscreen();
-      begin(resumePayload);
-    }).catch(function (e) {
+      return run('resumeExam').then(function (p) {
+        if (p.status !== 'active') {
+          exitFullscreen(); stopCamera();
+          blocked('受験は終了しています', '制限時間を過ぎたか、すでに提出されています。このページは閉じてかまいません。');
+          return;
+        }
+        begin(p);
+      }, function (e) {
+        exitFullscreen();
+        $('resumeBtn').disabled = false;
+        $('resumeMsg').textContent = '再開できませんでした。通信状況を確認して、もう一度お試しください。';
+      });
+    }, function (e) {
       $('resumeBtn').disabled = false;
       $('resumeMsg').textContent = camErrorText(e) + '（カメラを使用できないと受験を続けられません）';
     });
@@ -442,6 +464,7 @@
     state.items = p.items;
     state.figs = p.figs || {};
     state.limitSec = p.limitSec;
+    if (p.name) state.name = p.name;
     var offset = p.serverNow - Date.now();
     state.deadline = p.startedAt + p.limitSec * 1000 - offset;
     var saved = load('aptitude_stats_' + p.id);
@@ -763,29 +786,42 @@
   });
 
   /* ---------- 起動時 ---------- */
-  var saved = load(KEY);
-  if (saved && saved.id) {
-    $('loadingText').textContent = '前回の受験状況を確認しています…';
-    run('resumeExam', saved.id).then(function (p) {
-      if (p.status === 'active') {
-        state.name = saved.name || '';
-        resumePayload = p;
-        var left = Math.max(0, Math.ceil((p.startedAt + p.limitSec * 1000 - p.serverNow) / 1000));
-        $('resumeLeft').textContent = fmt(left);
-        show('resume');
-      } else if (p.status === 'submitted') {
-        store(KEY, null);
-        $('doneTitle').textContent = 'この受験はすでに終了しています';
-        $('doneText').textContent = '解答は提出済みです。このページは閉じてかまいません。';
-        show('done');
-      } else {
-        store(KEY, null); show('intro');
-      }
-    }).catch(function () { show('intro'); });
+  function fmtExpiry(ms) {
+    var d = new Date(ms);
+    var p = function (n) { return (n < 10 ? '0' : '') + n; };
+    return d.getFullYear() + '/' + p(d.getMonth() + 1) + '/' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  if (!/^[0-9a-f]{40,64}$/.test(TOKEN)) {
+    blocked('この受験URLは使用できません', '採用担当者からご案内した受験URLを、そのまま開いてください。');
   } else {
-    show('intro');
+    $('loadingText').textContent = '受験URLを確認しています…';
+    api('check', { token: TOKEN }).then(function (c) {
+      if (c.status === 'ok') {
+        state.name = c.name;
+        $('inviteName').textContent = c.name;
+        $('expiryText').textContent = '（このURLの有効期限：' + fmtExpiry(c.expiresAt) + '）';
+        show('intro');
+      } else if (c.status === 'active') {
+        state.name = c.name;
+        var left = Math.max(0, Math.ceil((c.startedAt + c.limitSec * 1000 - c.serverNow) / 1000));
+        $('resumeLeft').textContent = fmt(left);
+        $('resumeBtn').textContent = '受験を再開する';
+        show('resume');
+      } else if (c.status === 'used') {
+        blocked('この受験URLはすでに使用されています', '受験は終了しています。このページは閉じてかまいません。');
+      } else if (c.status === 'expired') {
+        blocked('この受験URLは有効期限が切れています', 'お手数ですが、採用担当者にご連絡ください。');
+      } else if (c.status === 'revoked') {
+        blocked('この受験URLは無効になっています', '新しい受験URLが発行されています。採用担当者からのご案内をご確認ください。');
+      } else {
+        blocked('この受験URLは使用できません', '採用担当者からご案内した受験URLを、そのまま開いてください。');
+      }
+    }).catch(function () {
+      blocked('受験URLを確認できませんでした', '通信状況を確認して、ページを再読み込みしてください。');
+    });
   }
 })();
 </script>
 </body>
 </html>
+
