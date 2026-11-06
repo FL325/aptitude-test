@@ -112,6 +112,37 @@
   .camchip video { width: 56px; height: 42px; object-fit: cover; border-radius: 3px; background: #000; transform: scaleX(-1); }
   .camchip span { font-size: 12px; color: var(--muted); line-height: 1.3; }
   .btn.sub { font-size: 15px; padding: 9px 18px; background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  /* 応募者プロフィール */
+  .pf-who { margin: -12px 0 28px; color: var(--muted); }
+  .pf-who b { color: var(--ink); }
+  .pf-q { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; margin-bottom: 14px; }
+  .pf-q.err { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger) inset; }
+  .pf-label { display: block; font-weight: 700; margin: 0 0 10px; }
+  .pf-sub { font-weight: 400; font-size: 14px; color: var(--muted); margin-left: 6px; }
+  .pf-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pf-opts .opt { min-width: 120px; }
+  .pf-q textarea { margin-top: 0; min-height: 120px; }
+  .pf-inline { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .pf-inline .pf-short { width: 84px; max-width: 84px; text-align: right; }
+  .pf-gap { margin-left: 14px; }
+  .pf-pair { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 10px; }
+  .pf-pair label { display: flex; flex-direction: column; gap: 4px; font-size: 14px; color: var(--muted); }
+  .pf-pair input { max-width: 220px; }
+  #pf-side-q input { max-width: 240px; margin-top: 8px; }
+  .pf-notes { margin: 0 0 12px; padding-left: 1.2em; font-size: 14px; color: var(--muted); }
+  .pf-notes li { margin-bottom: 2px; }
+  .pf-drop { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; border: 1px dashed var(--line); border-radius: 4px; padding: 14px; background: #FAFBFC; }
+  .pf-drop.over { border-color: var(--accent); background: var(--accent-soft); }
+  .pf-drop span { font-size: 14px; color: var(--muted); }
+  .pf-files { list-style: none; margin: 10px 0 0; padding: 0; }
+  .pf-files li { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px; margin-bottom: 6px; font-size: 15px; background: #fff; }
+  .pf-files li b { font-weight: 400; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pf-files li small { color: var(--muted); margin-left: 8px; white-space: nowrap; }
+  .pf-files button { font: inherit; font-size: 13px; border: 0; background: none; color: var(--danger); cursor: pointer; padding: 4px; flex: none; }
+  .pf-fileerr { color: var(--danger); font-size: 14px; margin: 8px 0 0; min-height: 0; }
+  .pf-note-label { display: block; font-weight: 700; font-size: 15px; margin: 16px 0 6px; }
+  .pf-q textarea.pf-note { min-height: 90px; }
+  textarea::placeholder { color: #9AA5AE; }
   .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 4px; z-index: 60; font-size: 14px; }
 </style>
 </head>
@@ -157,6 +188,70 @@
   </label>
   <button class="btn" id="startBtn" disabled>回答を開始する</button>
   <div class="msg" id="introMsg" role="alert"></div>
+</main>
+
+<!-- 応募者プロフィール -->
+<main id="screen-profile" class="wrap intro" hidden>
+  <h1>応募者プロフィール</h1>
+  <p class="lead">適性検査の前に、簡単なプロフィールのご入力と応募書類のご提出をお願いします。この画面には制限時間はありません。入力が終わると、適性検査の説明画面に進みます。</p>
+  <p class="pf-who">受験者：<b id="pfName"></b> さん</p>
+  <div class="pf-q" id="pf-jobs-q">
+    <p class="pf-label">希望の職種<span class="req">必須</span></p>
+    <div class="pf-opts" id="pf-jobs"></div>
+  </div>
+  <div class="pf-q" id="pf-reason-q">
+    <label class="pf-label" for="pf-reason">弊社に興味を持った理由<span class="req">必須</span></label>
+    <textarea id="pf-reason" maxlength="3000"></textarea>
+  </div>
+  <div class="pf-q" id="pf-style-q">
+    <p class="pf-label">ご希望の就業形態<span class="req">必須</span></p>
+    <div class="pf-opts" id="pf-style"></div>
+    <p class="hint">※副業の方は、本業が正規雇用（正社員等）の方に限ります。</p>
+  </div>
+  <div class="pf-q" id="pf-pace-q">
+    <p class="pf-label">ご希望の稼働ペース<span class="req">必須</span></p>
+    <div class="pf-inline">
+      <span>週</span><input type="text" id="pf-days" class="pf-short" maxlength="20" inputmode="decimal" aria-label="週の稼働回数"><span>回</span>
+      <span class="pf-gap">1日</span><input type="text" id="pf-hours" class="pf-short" maxlength="20" inputmode="decimal" aria-label="1日の稼働時間"><span>時間</span>
+    </div>
+    <p class="hint">※月64時間以上の稼働が必須です。（副業の場合は月40時間以上）</p>
+    <label class="pf-note-label" for="pf-pacenote">補足<span class="pf-sub">（任意）</span></label>
+    <textarea id="pf-pacenote" class="pf-note" maxlength="1000" placeholder="例：平日は19時以降、土日は日中に稼働できます／月によって稼働時間が変わります など"></textarea>
+  </div>
+  <div class="pf-q" id="pf-daytime-q">
+    <p class="pf-label">平日日中の稼働可否<span class="req">必須</span></p>
+    <div class="pf-opts" id="pf-daytime"></div>
+  </div>
+  <div class="pf-q" id="pf-free-q" hidden>
+    <p class="pf-label">【フリーランスの方のみ】希望時間単価 ＋ 最低希望時間単価<span class="req">必須</span></p>
+    <p class="hint">※両方ご提示ください。</p>
+    <div class="pf-pair">
+      <label>希望時間単価<input type="text" id="pf-rate" maxlength="100" placeholder="例：4,000円"></label>
+      <label>最低希望時間単価<input type="text" id="pf-minrate" maxlength="100" placeholder="例：3,500円"></label>
+    </div>
+  </div>
+  <div class="pf-q" id="pf-side-q" hidden>
+    <label class="pf-label" for="pf-mainrate">【副業の方のみ】本業のおおよその時間単価相当額<span class="req">必須</span></label>
+    <p class="hint">※賞与・手当・交通費を除きます。</p>
+    <input type="text" id="pf-mainrate" maxlength="100" placeholder="例：3,000円">
+  </div>
+  <div class="pf-q" id="pf-docs-q">
+    <p class="pf-label">応募書類（履歴書・職務経歴書）<span class="req">必須</span></p>
+    <ul class="pf-notes">
+      <li>履歴書と職務経歴書の両方をお送りください。1つのファイルにまとめている場合は、そのファイルのみで構いません。</li>
+      <li>書類が不足している場合は、後日あらためて送付をお願いすることがあります。</li>
+      <li>お送りいただいた書類は、選考に関わる限られた担当者のみが閲覧し、一定期間の経過後に破棄します。</li>
+    </ul>
+    <div class="pf-drop" id="pfDrop">
+      <button class="btn sub" id="pfPick" type="button">ファイルを選ぶ</button>
+      <span>PDF・Word・Excel・JPG・PNG（1ファイル10MBまで、最大3ファイル）</span>
+      <input type="file" id="pf-files" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png" hidden>
+    </div>
+    <ul class="pf-files" id="pfFileList"></ul>
+    <p class="pf-fileerr" id="pfFileErr" role="alert"></p>
+  </div>
+  <button class="btn" id="pfSubmit" type="button">入力内容と書類を送信して次へ</button>
+  <div class="msg" id="pfMsg" role="alert"></div>
 </main>
 
 <!-- 再開 -->
@@ -262,7 +357,7 @@
   };
 
   var $ = function (id) { return document.getElementById(id); };
-  var screens = ['intro', 'resume', 'exam', 'done', 'error', 'loading', 'blocked'];
+  var screens = ['intro', 'profile', 'resume', 'exam', 'done', 'error', 'loading', 'blocked'];
   var TOKEN = (function () {
     try { return (new URLSearchParams(location.search).get('t') || '').toLowerCase(); } catch (e) { return ''; }
   })();
@@ -765,6 +860,7 @@
 
   /* ---------- コピー・貼り付け・右クリックの禁止 ---------- */
   function block(e) {
+    if (!state.active && !$('screen-profile').hidden) { if (e.type === 'drop') e.preventDefault(); return; } // プロフィール入力中は制限しない（ファイルを画面に落としてもページが切り替わらないようにする）
     e.preventDefault();
     if (state.active) { state.stats.blockedCount++; reportSoon(); }
     toast('この操作は使用できません');
@@ -785,6 +881,159 @@
     if (state.active && !state.locked) { persistStats(); saveDraft(); e.preventDefault(); e.returnValue = ''; }
   });
 
+  /* ---------- 応募者プロフィール ---------- */
+  var PF_KEY = 'aptitude_profile_' + TOKEN;
+  var PF = { jobs: ['エンジニア', 'PdM'], style: ['フリーランス', '副業'], daytime: ['可', '不可'] };
+  function pfOptions(boxId, name, list, type) {
+    var box = $(boxId);
+    list.forEach(function (o) {
+      var lab = document.createElement('label'); lab.className = 'opt';
+      var inp = document.createElement('input'); inp.type = type; inp.name = name; inp.value = o;
+      inp.addEventListener('change', function () { pfToggle(); pfSave(); });
+      var sp = document.createElement('span'); sp.textContent = o;
+      lab.appendChild(inp); lab.appendChild(sp); box.appendChild(lab);
+    });
+  }
+  pfOptions('pf-jobs', 'pf_job', PF.jobs, 'radio');
+  pfOptions('pf-style', 'pf_style', PF.style, 'radio');
+  pfOptions('pf-daytime', 'pf_daytime', PF.daytime, 'radio');
+  function pfChecked(name) { return Array.prototype.map.call(document.querySelectorAll('input[name="' + name + '"]:checked'), function (x) { return x.value; }); }
+  function pfCollect() {
+    return {
+      job: pfChecked('pf_job')[0] || '',
+      reason: $('pf-reason').value,
+      style: pfChecked('pf_style')[0] || '',
+      days: $('pf-days').value,
+      hours: $('pf-hours').value,
+      paceNote: $('pf-pacenote').value,
+      daytime: pfChecked('pf_daytime')[0] || '',
+      rate: $('pf-rate').value,
+      minRate: $('pf-minrate').value,
+      mainRate: $('pf-mainrate').value
+    };
+  }
+  function pfToggle() {
+    var style = pfChecked('pf_style')[0] || '';
+    $('pf-free-q').hidden = style !== 'フリーランス';
+    $('pf-side-q').hidden = style !== '副業';
+  }
+  function pfSave() { store(PF_KEY, pfCollect()); }
+  function pfRestore() {
+    var d = load(PF_KEY); if (!d) return;
+    ['pf_job', 'pf_style', 'pf_daytime'].forEach(function (name) {
+      var key = name === 'pf_job' ? 'job' : name === 'pf_style' ? 'style' : 'daytime';
+      var vals = [].concat(d[key] || []);
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="' + name + '"]'), function (x) { x.checked = vals.indexOf(x.value) >= 0; });
+    });
+    $('pf-reason').value = d.reason || ''; $('pf-days').value = d.days || ''; $('pf-hours').value = d.hours || ''; $('pf-pacenote').value = d.paceNote || '';
+    $('pf-rate').value = d.rate || ''; $('pf-minrate').value = d.minRate || ''; $('pf-mainrate').value = d.mainRate || '';
+    pfToggle();
+  }
+  ['pf-reason', 'pf-days', 'pf-hours', 'pf-pacenote', 'pf-rate', 'pf-minrate', 'pf-mainrate'].forEach(function (id) { $(id).addEventListener('input', pfSave); });
+  function pfCheck(p) {
+    var bad = [];
+    var mark = function (id, ng) { $(id).classList.toggle('err', ng); if (ng) bad.push(id); };
+    var blank = function (s) { return !String(s || '').trim(); };
+    mark('pf-jobs-q', !p.job);
+    mark('pf-reason-q', blank(p.reason));
+    mark('pf-style-q', !p.style);
+    mark('pf-pace-q', blank(p.days) || blank(p.hours));
+    mark('pf-daytime-q', !p.daytime);
+    mark('pf-free-q', p.style === 'フリーランス' && (blank(p.rate) || blank(p.minRate)));
+    mark('pf-side-q', p.style === '副業' && blank(p.mainRate));
+    return bad;
+  }
+  ['input', 'change'].forEach(function (ev) {
+    $('screen-profile').addEventListener(ev, function (e) {
+      var q = e.target.closest && e.target.closest('.pf-q');
+      if (q) q.classList.remove('err');
+      if (!document.querySelector('.pf-q.err')) $('pfMsg').textContent = '';
+    });
+  });
+  /* 応募書類 */
+  var DOC = { max: 3, maxBytes: 10 * 1024 * 1024, exts: ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'jpg', 'jpeg', 'png'] };
+  var pfFiles = [];
+  function fileSize(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + 'MB' : Math.max(1, Math.round(n / 1024)) + 'KB'; }
+  function renderFiles() {
+    var ul = $('pfFileList'); ul.innerHTML = '';
+    pfFiles.forEach(function (f, i) {
+      var li = document.createElement('li');
+      var b = document.createElement('b'); b.textContent = f.name;
+      var sm = document.createElement('small'); sm.textContent = fileSize(f.size);
+      var left = document.createElement('span'); left.style.minWidth = '0'; left.style.display = 'flex'; left.appendChild(b); left.appendChild(sm);
+      var del = document.createElement('button'); del.type = 'button'; del.textContent = '取り消す';
+      del.setAttribute('aria-label', f.name + ' を取り消す');
+      del.addEventListener('click', function () { pfFiles.splice(i, 1); renderFiles(); });
+      li.appendChild(left); li.appendChild(del); ul.appendChild(li);
+    });
+    $('pfPick').textContent = pfFiles.length ? 'ファイルを追加' : 'ファイルを選ぶ';
+  }
+  function addFiles(list) {
+    var errs = [];
+    Array.prototype.forEach.call(list, function (f) {
+      var ext = (f.name.split('.').pop() || '').toLowerCase();
+      if (DOC.exts.indexOf(ext) < 0 || f.name.indexOf('.') < 0) { errs.push(f.name + '：この形式は送付できません'); return; }
+      if (f.size > DOC.maxBytes) { errs.push(f.name + '：10MBを超えています'); return; }
+      if (!f.size) { errs.push(f.name + '：ファイルが空です'); return; }
+      if (pfFiles.some(function (x) { return x.name === f.name && x.size === f.size; })) return;
+      if (pfFiles.length >= DOC.max) { errs.push('送付できるのは' + DOC.max + 'ファイルまでです'); return; }
+      pfFiles.push(f);
+    });
+    $('pfFileErr').textContent = errs.join(' ／ ');
+    if (pfFiles.length) $('pf-docs-q').classList.remove('err');
+    renderFiles();
+  }
+  $('pfPick').addEventListener('click', function () { $('pf-files').click(); });
+  $('pf-files').addEventListener('change', function () { addFiles(this.files); this.value = ''; });
+  ['dragover', 'dragenter'].forEach(function (ev) { $('pfDrop').addEventListener(ev, function (e) { e.preventDefault(); $('pfDrop').classList.add('over'); }); });
+  ['dragleave', 'drop'].forEach(function (ev) { $('pfDrop').addEventListener(ev, function () { $('pfDrop').classList.remove('over'); }); });
+  $('pfDrop').addEventListener('drop', function (e) { e.preventDefault(); if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files); });
+  function readFile(f) {
+    return new Promise(function (ok, ng) {
+      var r = new FileReader();
+      r.onload = function () { ok(r.result); };
+      r.onerror = function () { ng(new Error('ファイルを読み込めませんでした：' + f.name)); };
+      r.readAsDataURL(f);
+    });
+  }
+  function uploadAll() {
+    var total = pfFiles.length;
+    return pfFiles.reduce(function (p, f, i) {
+      return p.then(function () {
+        $('pfSubmit').textContent = '書類を送信しています（' + (i + 1) + '/' + total + '）…';
+        return readFile(f);
+      }).then(function (data) {
+        return api('upload', { token: TOKEN, index: i, total: total, name: f.name, data: data });
+      });
+    }, Promise.resolve());
+  }
+
+  function openProfile() {
+    $('pfName').textContent = state.name;
+    pfRestore();
+    show('profile');
+  }
+  $('pfSubmit').addEventListener('click', function () {
+    var p = pfCollect();
+    var bad = pfCheck(p);
+    $('pf-docs-q').classList.toggle('err', !pfFiles.length);
+    if (!pfFiles.length) bad.push('pf-docs-q');
+    if (bad.length) {
+      $('pfMsg').textContent = '未入力の項目があります。赤枠の項目を入力してください。';
+      var first = $(bad[0]); if (first && first.scrollIntoView) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    $('pfSubmit').disabled = true; $('pfMsg').textContent = ''; $('pfSubmit').textContent = '送信しています…';
+    api('profile', { token: TOKEN, profile: p }).then(uploadAll).then(function () {
+      store(PF_KEY, null);
+      show('intro');
+    }).catch(function (e) {
+      $('pfMsg').textContent = (e && e.message) || '送信できませんでした。通信状況を確認して、もう一度お試しください。';
+    }).then(function () {
+      $('pfSubmit').disabled = false; $('pfSubmit').textContent = '入力内容と書類を送信して次へ';
+    });
+  });
+
   /* ---------- 起動時 ---------- */
   function fmtExpiry(ms) {
     var d = new Date(ms);
@@ -800,7 +1049,7 @@
         state.name = c.name;
         $('inviteName').textContent = c.name;
         $('expiryText').textContent = '（このURLの有効期限：' + fmtExpiry(c.expiresAt) + '）';
-        show('intro');
+        if (c.profileDone) show('intro'); else openProfile();
       } else if (c.status === 'active') {
         state.name = c.name;
         var left = Math.max(0, Math.ceil((c.startedAt + c.limitSec * 1000 - c.serverNow) / 1000));
@@ -824,4 +1073,3 @@
 </script>
 </body>
 </html>
-
