@@ -117,6 +117,19 @@
   .camchip video { width: 56px; height: 42px; object-fit: cover; border-radius: 3px; background: #000; transform: scaleX(-1); }
   .camchip span { font-size: 12px; color: var(--muted); line-height: 1.3; }
   .btn.sub { font-size: 15px; padding: 9px 18px; background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  /* 応募者プロフィール */
+  .pf-who { margin: -12px 0 28px; color: var(--muted); }
+  .pf-who b { color: var(--ink); }
+  .pf-q { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; margin-bottom: 14px; }
+  .pf-q.err { border-color: var(--danger); box-shadow: 0 0 0 1px var(--danger) inset; }
+  .pf-label { display: block; font-weight: 700; margin: 0 0 10px; }
+  .pf-sub { font-weight: 400; font-size: 14px; color: var(--muted); margin-left: 6px; }
+  .pf-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pf-opts .opt { min-width: 120px; }
+  .pf-q textarea { margin-top: 0; min-height: 120px; }
+  .pf-q input[type=text] { max-width: 420px; }
+  .pf-q .hint { margin-top: 10px; }
+  textarea::placeholder, input::placeholder { color: #9AA5AE; }
   .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 4px; z-index: 60; font-size: 14px; }
 </style>
 </head>
@@ -162,6 +175,16 @@
   </label>
   <button class="btn" id="startBtn" disabled>回答を開始する</button>
   <div class="msg" id="introMsg" role="alert"></div>
+</main>
+
+<!-- 応募者プロフィール -->
+<main id="screen-profile" class="wrap intro" hidden>
+  <h1>応募者アンケート</h1>
+  <p class="lead">適性検査の前に、簡単なアンケートにご回答ください。この画面には制限時間はありません。回答が終わると、適性検査の説明画面に進みます。</p>
+  <p class="pf-who">受験者：<b id="pfName"></b> さん</p>
+  <div id="pfForm"></div>
+  <button class="btn" id="pfSubmit" type="button">回答を送信して次へ</button>
+  <div class="msg" id="pfMsg" role="alert"></div>
 </main>
 
 <!-- 再開 -->
@@ -267,7 +290,7 @@
   };
 
   var $ = function (id) { return document.getElementById(id); };
-  var screens = ['intro', 'resume', 'exam', 'done', 'error', 'loading', 'blocked'];
+  var screens = ['intro', 'profile', 'resume', 'exam', 'done', 'error', 'loading', 'blocked'];
   var TOKEN = (function () {
     try { return (new URLSearchParams(location.search).get('t') || '').toLowerCase(); } catch (e) { return ''; }
   })();
@@ -792,6 +815,7 @@
 
   /* ---------- コピー・貼り付け・右クリックの禁止 ---------- */
   function block(e) {
+    if (!state.active && !$('screen-profile').hidden) return; // アンケート回答中は制限しない
     e.preventDefault();
     if (state.active) { state.stats.blockedCount++; reportSoon(); }
     toast('この操作は使用できません');
@@ -812,6 +836,99 @@
     if (state.active && !state.locked) { persistStats(); saveDraft(); e.preventDefault(); e.returnValue = ''; }
   });
 
+  /* ---------- 応募者プロフィール（質問はサーバーから受け取った定義で組み立てる） ---------- */
+  var PF_KEY = 'aptitude_profile_' + TOKEN;
+  var pfFields = [];
+  function pfBuild(fields) {
+    pfFields = fields || [];
+    var root = $('pfForm'); root.innerHTML = '';
+    pfFields.forEach(function (f) {
+      var q = document.createElement('div'); q.className = 'pf-q'; q.id = 'pfq-' + f.key;
+      var lab = document.createElement(f.options ? 'p' : 'label'); lab.className = 'pf-label';
+      if (!f.options) lab.htmlFor = 'pf-' + f.key;
+      lab.appendChild(document.createTextNode(f.label));
+      if (f.sub) { var sb = document.createElement('span'); sb.className = 'pf-sub'; sb.textContent = f.sub; lab.appendChild(sb); }
+      var rq = document.createElement('span'); rq.className = 'req'; rq.textContent = '必須'; lab.appendChild(rq);
+      q.appendChild(lab);
+      if (f.options) {
+        var box = document.createElement('div'); box.className = 'pf-opts';
+        f.options.forEach(function (o) {
+          var l = document.createElement('label'); l.className = 'opt';
+          var inp = document.createElement('input'); inp.type = 'radio'; inp.name = 'pf_' + f.key; inp.value = o;
+          inp.addEventListener('change', pfSave);
+          var sp = document.createElement('span'); sp.textContent = o;
+          l.appendChild(inp); l.appendChild(sp); box.appendChild(l);
+        });
+        q.appendChild(box);
+      } else {
+        var el = document.createElement(f.area ? 'textarea' : 'input');
+        if (!f.area) el.type = 'text';
+        el.id = 'pf-' + f.key; if (f.max) el.maxLength = f.max;
+        if (f.placeholder) el.placeholder = f.placeholder;
+        el.addEventListener('input', pfSave);
+        q.appendChild(el);
+      }
+      if (f.note) { var nt = document.createElement('p'); nt.className = 'hint'; nt.textContent = f.note; q.appendChild(nt); }
+      root.appendChild(q);
+    });
+  }
+  function pfCollect() {
+    var p = {};
+    pfFields.forEach(function (f) {
+      if (f.options) { var c = document.querySelector('input[name="pf_' + f.key + '"]:checked'); p[f.key] = c ? c.value : ''; }
+      else p[f.key] = $('pf-' + f.key).value;
+    });
+    return p;
+  }
+  function pfSave() { store(PF_KEY, pfCollect()); }
+  function pfRestore() {
+    var d = load(PF_KEY); if (!d) return;
+    pfFields.forEach(function (f) {
+      if (f.options) Array.prototype.forEach.call(document.querySelectorAll('input[name="pf_' + f.key + '"]'), function (x) { x.checked = x.value === d[f.key]; });
+      else if (d[f.key]) $('pf-' + f.key).value = d[f.key];
+    });
+  }
+  function pfCheck(p) {
+    var bad = [];
+    pfFields.forEach(function (f) {
+      var ng = !String(p[f.key] || '').trim();
+      $('pfq-' + f.key).classList.toggle('err', ng);
+      if (ng) bad.push('pfq-' + f.key);
+    });
+    return bad;
+  }
+  ['input', 'change'].forEach(function (ev) {
+    $('screen-profile').addEventListener(ev, function (e) {
+      var q = e.target.closest && e.target.closest('.pf-q');
+      if (q) q.classList.remove('err');
+      if (!document.querySelector('.pf-q.err')) $('pfMsg').textContent = '';
+    });
+  });
+  function openProfile(fields) {
+    $('pfName').textContent = state.name;
+    pfBuild(fields);
+    pfRestore();
+    show('profile');
+  }
+  $('pfSubmit').addEventListener('click', function () {
+    var p = pfCollect();
+    var bad = pfCheck(p);
+    if (bad.length) {
+      $('pfMsg').textContent = '未回答の項目があります。赤枠の項目にご回答ください。';
+      var first = $(bad[0]); if (first && first.scrollIntoView) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    $('pfSubmit').disabled = true; $('pfMsg').textContent = ''; $('pfSubmit').textContent = '送信しています…';
+    api('profile', { token: TOKEN, profile: p }).then(function () {
+      store(PF_KEY, null);
+      show('intro');
+    }).catch(function (e) {
+      $('pfMsg').textContent = (e && e.message) || '送信できませんでした。通信状況を確認して、もう一度お試しください。';
+    }).then(function () {
+      $('pfSubmit').disabled = false; $('pfSubmit').textContent = '回答を送信して次へ';
+    });
+  });
+
   /* ---------- 起動時 ---------- */
   function fmtExpiry(ms) {
     var d = new Date(ms);
@@ -827,7 +944,7 @@
         state.name = c.name;
         $('inviteName').textContent = c.name;
         $('expiryText').textContent = '（このURLの有効期限：' + fmtExpiry(c.expiresAt) + '）';
-        show('intro');
+        if (c.profileDone) show('intro'); else openProfile(c.profileForm);
       } else if (c.status === 'active') {
         state.name = c.name;
         var left = Math.max(0, Math.ceil((c.startedAt + c.limitSec * 1000 - c.serverNow) / 1000));
