@@ -113,6 +113,7 @@
   .camchip span { font-size: 12px; color: var(--muted); line-height: 1.3; }
   .btn.sub { font-size: 15px; padding: 9px 18px; background: transparent; color: var(--accent); border: 1px solid var(--accent); }
   /* 応募者プロフィール */
+  .pf-pc { color: var(--danger); font-size: 20px; font-weight: 700; margin: 4px 0 8px; }
   .pf-who { margin: -12px 0 28px; color: var(--muted); }
   .pf-who b { color: var(--ink); }
   .pf-q { background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 18px 20px; margin-bottom: 14px; }
@@ -193,11 +194,18 @@
 <!-- 応募者プロフィール -->
 <main id="screen-profile" class="wrap intro" hidden>
   <h1>応募者プロフィール</h1>
-  <p class="lead">適性検査の前に、簡単なプロフィールのご入力と応募書類のご提出をお願いします。この画面には制限時間はありません。入力が終わると、適性検査の説明画面に進みます。</p>
+  <p class="pf-pc">※PCよりご回答ください※</p>
+  <p class="lead">まずは簡単なプロフィールの入力と応募書類の提出をお願いします。プロフィールの入力が終わると25分間の適性検査に進むため、カメラが利用できるPCからのアクセスをお願いいたします。</p>
   <p class="pf-who">受験者：<b id="pfName"></b> さん</p>
+  <div class="pf-q" id="pf-name-q">
+    <label class="pf-label" for="pf-name">氏名<span class="req">必須</span></label>
+    <input type="text" id="pf-name" maxlength="50" autocomplete="name" placeholder="例：山田 太郎">
+  </div>
   <div class="pf-q" id="pf-jobs-q">
     <p class="pf-label">希望の職種<span class="req">必須</span></p>
     <div class="pf-opts" id="pf-jobs"></div>
+    <label class="pf-note-label" for="pf-jobnote">その他、ご希望や補足があればお書きください<span class="pf-sub">（任意）</span></label>
+    <textarea id="pf-jobnote" class="pf-note" maxlength="1000"></textarea>
   </div>
   <div class="pf-q" id="pf-reason-q">
     <label class="pf-label" for="pf-reason">弊社に興味を持った理由<span class="req">必須</span></label>
@@ -223,7 +231,7 @@
     <div class="pf-opts" id="pf-daytime"></div>
   </div>
   <div class="pf-q" id="pf-free-q" hidden>
-    <p class="pf-label">【フリーランスの方のみ】希望時間単価 ＋ 最低希望時間単価<span class="req">必須</span></p>
+    <p class="pf-label">希望時間単価 ＋ 最低希望時間単価<span class="req">必須</span></p>
     <p class="hint">※両方ご提示ください。</p>
     <div class="pf-pair">
       <label>希望時間単価<input type="text" id="pf-rate" maxlength="100" placeholder="例：4,000円"></label>
@@ -231,7 +239,7 @@
     </div>
   </div>
   <div class="pf-q" id="pf-side-q" hidden>
-    <label class="pf-label" for="pf-mainrate">【副業の方のみ】本業のおおよその時間単価相当額<span class="req">必須</span></label>
+    <label class="pf-label" for="pf-mainrate">本業のおおよその時間単価相当額<span class="req">必須</span></label>
     <p class="hint">※賞与・手当・交通費を除きます。</p>
     <input type="text" id="pf-mainrate" maxlength="100" placeholder="例：3,000円">
   </div>
@@ -900,7 +908,9 @@
   function pfChecked(name) { return Array.prototype.map.call(document.querySelectorAll('input[name="' + name + '"]:checked'), function (x) { return x.value; }); }
   function pfCollect() {
     return {
+      fullName: $('pf-name').value,
       job: pfChecked('pf_job')[0] || '',
+      jobNote: $('pf-jobnote').value,
       reason: $('pf-reason').value,
       style: pfChecked('pf_style')[0] || '',
       days: $('pf-days').value,
@@ -925,15 +935,16 @@
       var vals = [].concat(d[key] || []);
       Array.prototype.forEach.call(document.querySelectorAll('input[name="' + name + '"]'), function (x) { x.checked = vals.indexOf(x.value) >= 0; });
     });
-    $('pf-reason').value = d.reason || ''; $('pf-days').value = d.days || ''; $('pf-hours').value = d.hours || ''; $('pf-pacenote').value = d.paceNote || '';
+    $('pf-name').value = d.fullName || ''; $('pf-jobnote').value = d.jobNote || ''; $('pf-reason').value = d.reason || ''; $('pf-days').value = d.days || ''; $('pf-hours').value = d.hours || ''; $('pf-pacenote').value = d.paceNote || '';
     $('pf-rate').value = d.rate || ''; $('pf-minrate').value = d.minRate || ''; $('pf-mainrate').value = d.mainRate || '';
     pfToggle();
   }
-  ['pf-reason', 'pf-days', 'pf-hours', 'pf-pacenote', 'pf-rate', 'pf-minrate', 'pf-mainrate'].forEach(function (id) { $(id).addEventListener('input', pfSave); });
+  ['pf-name', 'pf-jobnote', 'pf-reason', 'pf-days', 'pf-hours', 'pf-pacenote', 'pf-rate', 'pf-minrate', 'pf-mainrate'].forEach(function (id) { $(id).addEventListener('input', pfSave); });
   function pfCheck(p) {
     var bad = [];
     var mark = function (id, ng) { $(id).classList.toggle('err', ng); if (ng) bad.push(id); };
     var blank = function (s) { return !String(s || '').trim(); };
+    mark('pf-name-q', blank(p.fullName));
     mark('pf-jobs-q', !p.job);
     mark('pf-reason-q', blank(p.reason));
     mark('pf-style-q', !p.style);
